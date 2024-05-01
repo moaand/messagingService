@@ -31,12 +31,12 @@ def get_messages(receiver, startdate, enddate):
 
 def send_message(receiver, data):
     
+    if not User.objects.filter(name=data['sender']).exists() or data['content'] == None:
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+    
     sender = User.objects.get(name=data['sender'])
     content = data['content']
 
-    if sender == None or content == None:
-        return Response(status=status.HTTP_400_BAD_REQUEST)
-    
     receiverId = UserSerializer(receiver).data['id']
     senderId = UserSerializer(sender).data['id']
 
@@ -62,22 +62,22 @@ def delete_messages(receiver):
 @api_view(['GET', 'POST', 'DELETE'])
 def messages(request, name):
 
-    receiver = User.objects.get(name=name)
-
-    if receiver == None:
+    if not User.objects.filter(name=name).exists():
         return Response(status=status.HTTP_404_NOT_FOUND)
+    
+    receiver = User.objects.get(name=name)
     
     if request.method == 'GET':
         return get_messages(receiver=receiver, startdate=request.GET.get("startdate"), enddate=request.GET.get("enddate"))
          
     elif request.method == 'POST':
-        return send_message(name=name, data=request.data)
+        return send_message(receiver=receiver, data=request.data)
 
     elif request.method == 'DELETE':
-        return delete_messages(name=name)
+        return delete_messages(receiver=receiver)
 
 @api_view(['DELETE'])
-def delete_message(id):
+def delete_message(_, id):
     message = Message.objects.get(id=id)
     message.delete()
 
@@ -89,10 +89,11 @@ def users(request):
     if request.method == 'GET':
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
+
         return Response(serializer.data)
     
     elif request.method == 'POST':
-        if User.objects.get(name=request.data['name']):
+        if User.objects.filter(name=request.data['name']).exists():
             return Response(status=status.HTTP_409_CONFLICT)
 
         serializer = UserSerializer(data=request.data)
